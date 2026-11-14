@@ -1,0 +1,26 @@
+{
+  "status": "GO",
+  "reason_code": "ALL_CASES_SIGNED_OFF",
+  "reason": "All 12 case decisions signed off by legal reviewer(s); per-case results in decisions.csv",
+  "owner": "Trần Tuấn Anh (Data Owner, G04)",
+  "scope": "t09",
+  "evidence": [
+    "out\\poc\\decisions.csv",
+    "out\\poc\\audit_checklist.csv",
+    "out\\poc\\review_queue.csv",
+    "out\\poc\\audit_log.jsonl"
+  ],
+  "metrics": {
+    "n_cases": 12,
+    "by_decision": {
+      "HOLD": 9,
+      "GO": 2,
+      "REWORK": 1
+    },
+    "n_pending_legal": 0,
+    "policy_version": "g-t09-1.1",
+    "policy_sha256": "5ecd507817041fa8c4dec255adce726742d3bef91c9118abdc94e815791cfb1e"
+  },
+  "ts": "2026-11-14T10:14:21+00:00",
+  "canonical": "GO"
+}

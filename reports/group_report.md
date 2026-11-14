@@ -12,7 +12,7 @@
 | Challenge | T09 · Multi-Market Privacy Decision Gate |
 | Thành viên + vai trò | 1. Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) — làm một mình, đảm nhận cả 5 vai trò (Lead/Integrator, Data & fixtures, Core algorithm, QA/metric, Review + report) |
 | Git URL | https://github.com/plastma65/K5-L2-DAY06-TranTuanAnh-2A202603230-DataGovernanceAndPrivacy |
-| Tag `demo-180m` (commit) | ____ (gắn khi freeze demo) |
+| Tag `demo-180m` (commit) | `c0fd9d7` (code + report trước human review; review evidence thêm ở commit sau) |
 | Tag `final-24h` (commit) | ____ |
 | Deadline (giờ VN) | ____ |
 
@@ -85,15 +85,20 @@
 **Đọc trung thực:** PoC 8/8 trên dev là **kỳ vọng, không phải thành tích** — rule được viết khi đã đọc dev và gold dev do chính
 nhóm gán. Baseline all-HOLD cũng đạt critical-miss 0 nhưng FAIL guardrail → primary của nó không hợp lệ.
 
+**Sau human review** (`reports/selfcheck_dev_poc_reviewed.json`, cùng gold dev): Critical-miss 0.0 (0/7), false HOLD 0.0 (0/1,
+guardrail PASS), exact accuracy **0.875 (7/8)**. Case lệch duy nhất là CASE-03: người duyệt nâng REWORK → HOLD (xem 07), khác
+nhãn tự gán REWORK. Nhóm báo cả hai số (engine trước review và quyết định cuối sau review), không chỉnh gold dev cho khớp.
+
 **Eval (CASE-09..12) — quyết định của nhóm, chưa có gold:**
 
-| Case | Market | Baseline consent-only | PoC g-t09-1.0 | PoC g-t09-1.1 | Reason codes (1.1) |
-|---|---|---|---|---|---|
-| CASE-09 | IN | GO | HOLD | HOLD | AMBIGUOUS_NEEDS_LEGAL; MINORS; MARKET_NOT_COVERED |
-| CASE-10 | EU | HOLD | GO | GO | — (ghi chú UPCOMING: R-EU-AIA-01 từ 2028-08-02) |
-| CASE-11 | US-CA | HOLD | HOLD | HOLD | AMBIGUOUS_NEEDS_LEGAL |
-| CASE-12 | VN | HOLD | HOLD | HOLD | NO_LAWFUL_BASIS; RETENTION_EXCESSIVE; NO_ENCRYPTION |
+| Case | Market | Baseline consent-only | PoC g-t09-1.0 | PoC g-t09-1.1 (engine) | Sau human review | Reason codes (1.1) |
+|---|---|---|---|---|---|---|
+| CASE-09 | IN | GO | HOLD | HOLD | HOLD (approve) | AMBIGUOUS_NEEDS_LEGAL; MINORS; MARKET_NOT_COVERED |
+| CASE-10 | EU | HOLD | GO | GO | GO (approve) | — (ghi chú UPCOMING: R-EU-AIA-01 từ 2028-08-02) |
+| CASE-11 | US-CA | HOLD | HOLD | HOLD | HOLD (escalate) | AMBIGUOUS_NEEDS_LEGAL |
+| CASE-12 | VN | HOLD | HOLD | HOLD | HOLD (approve) | NO_LAWFUL_BASIS; RETENTION_EXCESSIVE; NO_ENCRYPTION |
 
+Human review không đổi quyết định nào trên eval. `decisions.csv` cuối có cả `proposed_decision` (engine) và `decision` (sau review).
 Số chính thức: `make eval-baseline eval-poc compare TRACK=t09` khi có overlay `gt/` của giảng viên.
 
 ## 05 · Evaluation protocol
@@ -104,6 +109,8 @@ Số chính thức: `make eval-baseline eval-poc compare TRACK=t09` khi có over
   case tổng hợp (không dựa trên eval) và **không đổi quyết định nào** trên 12 case fixture (so sánh 1.0 vs 1.1 ở bảng trên).
 - Minh bạch: khi chạy thử pipeline, nhóm đã **thấy output dự đoán** của CASE-09..12 (không thấy gold). Không rule nào được
   thêm/sửa dựa trên các output này; mọi thay đổi 1.0 → 1.1 truy được tới finding RT-xx trong `reports/redteam_t09.md`.
+  Ở bước human review (sau khi policy 1.1 đã chốt), người duyệt đọc đầy đủ CASE-09..12 — đó là vai trò "người phụ trách phê duyệt
+  cuối" theo đề. Các hạn chế của engine phát hiện trong lúc review eval được **ghi vào 09, không sửa vào policy** trước khi chấm.
 - Độ bất định: N nhỏ → báo từng case + Wilson 95% CI; không ngoại suy.
 - Lệnh: `python -m src.evaluate --track t09 --pred out/poc/decisions.csv --out reports/metrics_poc.json` (cần `gt/`);
   tự kiểm: `python -m src.evaluate --track t09 --gt reports/dev_labels_t09.csv --pred out/poc/decisions.csv --split dev`.
@@ -135,10 +142,29 @@ Số chính thức: `make eval-baseline eval-poc compare TRACK=t09` khi có over
 
 - **Review queue:** `out/poc/review_queue.csv` + `contact_sheet.html`, B = 12 (mọi case cần legal ký). Ưu tiên
   `100·severity + 20·ambiguity + 10·needs_legal_review + 3·số rule fired + số rule upcoming` (`src/pipeline.py::review_priority`).
-- **Override + audit:** reviewer chọn approve / edit (override GO|HOLD|REWORK + **note bắt buộc**) / reject / escalate (→ HOLD,
-  `ESCALATED_TO_DPO`). Bắt buộc tên reviewer; một case chỉ một dòng quyết định; override chỉ nhận GO/HOLD/REWORK.
-  Mỗi hành động ghi vào `audit_log.jsonl` (actor, before, after, reason). Demo đã chạy: `out/hitl_demo/` (CASE-05 REWORK→HOLD
-  có note; CASE-10 escalate → HOLD; run-level → GO `ALL_CASES_SIGNED_OFF`).
+- **Override + audit:** reviewer chọn approve / edit (override GO|HOLD|REWORK + **note bắt buộc**) / reject / escalate (→ HOLD;
+  mã `ESCALATED_TO_DPO` chỉ thêm khi quyết định thay đổi). Bắt buộc tên reviewer; một case chỉ một dòng quyết định; override chỉ
+  nhận GO/HOLD/REWORK. Mỗi hành động ghi vào `audit_log.jsonl` (actor, before, after, reason).
+
+**Human review thật (2026-11-14, reviewer: Trần Tuấn Anh, Data Owner G04)** — bằng chứng trong `reports/review_evidence/`
+(`review_queue.csv` → `review_queue_reviewed.csv` export từ `contact_sheet.html`, `decisions_final.csv`, `audit_log.jsonl`
+với 12 sự kiện `legal_review`, `decision.json` = **GO `ALL_CASES_SIGNED_OFF`**). Mỗi case được đối chiếu: dữ kiện gốc (JSON) →
+rule FIRED/PASSED trong `audit_checklist.csv` → điều luật → mức độ.
+
+| Case | Engine | Reviewer | Cuối | Nhận định chính của người duyệt |
+|---|---|---|---|---|
+| CASE-01 | HOLD | approve | HOLD | VN không có legitimate interest (Luật 91 Đ.9/Đ.19), không consent |
+| CASE-02 | HOLD | approve | HOLD | Consent hợp lệ không thay cơ chế chuyển giao Ch. V (nước thứ ba không adequacy, mechanism null) |
+| CASE-03 | REWORK | **edit → HOLD** | **HOLD** | Consent gộp/không rút được = không có consent hợp lệ → thực chất không có căn cứ; kèm ảnh mặt raw, chưa ẩn danh, lưu vô hạn trên cloud → phải dừng xử lý |
+| CASE-04 | HOLD | approve | HOLD | Thiếu DPIA (Art. 35(3)(c)), thêm camera cabin; cờ dữ liệu nhạy cảm; LIA chưa được engine kiểm |
+| CASE-05 | REWORK | approve | REWORK | CCPA không có lawful basis; chỉ thiếu notice at collection → ngừng thu mới tới khi có notice |
+| CASE-06 | GO | approve | GO | PDPA legitimate interests có đánh giá (R-SG-02 đạt), có notice, các biện pháp khác đạt |
+| CASE-07 | HOLD | approve | HOLD | Consent hợp lệ nhưng chuyển sang SG chưa có hồ sơ ĐGTĐ (Luật 91 Đ.20) |
+| CASE-08 | HOLD | approve | HOLD | Căn cứ unknown + mơ hồ processor/joint controller (Art. 26/28) là thật |
+| CASE-09 | HOLD | approve | HOLD | Ghi chú thực chất là luật DPDP sắp hiệu lực, **không phải ambiguity**; giữ HOLD vì minors_possible = true và IN chưa có policy |
+| CASE-10 | GO | approve | GO | Soát đủ 12 field; LI có LIA (`lia_done = true`, **engine không đọc field này**, kiểm thủ công); chuyển tới nước adequacy |
+| CASE-11 | HOLD | **escalate** | HOLD | Chưa rõ công ty có đạt ngưỡng "business" của CCPA 2026 → chuyển legal/finance xác định |
+| CASE-12 | HOLD | approve | HOLD | Legitimate interest ở VN; retention 3650 ngày; raw trên cloud không mã hoá; **mâu thuẫn** blur-before-upload vs raw_retained |
 - **Decision policy:** case-level theo rule (reason code + rule id + nguồn trong `audit_checklist.csv`); run-level `decision.json`
   với owner "Trần Tuấn Anh (Data Owner, G04)": HOLD `PENDING_LEGAL_APPROVAL` cho tới khi 12/12 case có quyết định của người duyệt.
 - **Không tự động release khi:** có ambiguity, trẻ em, thiếu/sai kiểu bằng chứng, market chưa có rule, hoặc chưa có chữ ký legal.
@@ -172,6 +198,15 @@ pytest -q
   điều khoản tương đương ở VN/SG/CA cần legal map.
 - **Chưa bao phủ:** EU legitimate interest chưa yêu cầu LIA; sensitive data chỉ FLAG; IN (DPDP) và các market khác → HOLD
   `MARKET_NOT_COVERED`; deletion/retention request chưa mô hình hoá (mốc +24h của đề); allowlist cơ chế chuyển giao có thể thiếu.
+- **Hạn chế engine do human review phát hiện** (ghi nhận, **không sửa** vào policy trước khi chấm vì một số đến từ case eval):
+  1. `R-GEN-01` coi mọi `ambiguity_notes` không rỗng là ambiguity, kể cả ghi chú thông tin như "luật sắp hiệu lực" (CASE-09)
+     → cần phân loại ghi chú (câu hỏi pháp lý vs thông tin/effective_date).
+  2. `R-SEC-02` tin khai báo `anonymization` mà không đối chiếu với `raw_retained` → không bắt được mâu thuẫn "blur trước upload
+     nhưng vẫn lưu raw trên cloud" (CASE-12).
+  3. Không có rule LIA cho EU; tên field LIA không thống nhất giữa các case (`li_assessment_done` ở SG, `lia_done` ở EU) → engine
+     ra GO cho CASE-10 mà không đọc bằng chứng LIA; người duyệt phải kiểm thủ công.
+  4. Policy xếp `CONSENT_INVALID` vào REWORK, nhưng consent không hợp lệ thực chất là không có căn cứ (HOLD); người duyệt đã nâng
+     CASE-03 lên HOLD → nên xem lại mức của rule này ở version sau (dựa trên dev, có thể áp dụng sau khi chấm).
 - **False alarm:** fail-safe làm dữ liệu bẩn/thiếu → HOLD; trên fixture sạch không phát sinh false HOLD (dev 0/1), nhưng N GO = 1
   nên chưa đo được đáng tin.
 - **Scale 10×:** engine O(case × rule), ~0.01 s/case → không phải vấn đề; nút thắt là thời gian legal review (B = mọi case) →
@@ -185,7 +220,7 @@ pytest -q
 
 | Học viên | Git author/email | Module / vai trò | Commit SHA | Trình bày? |
 |---|---|---|---|---|
-| Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) | Tran Tuan Anh <76089574+plastma65@users.noreply.github.com> (git, GitHub: plastma65) | Toàn bộ: policy, engine, pipeline, baselines, tests, review loop, report | 822bbaf, dec045f, 74d633e, f6ad721, f7ed6fb, bf543fe (+ commit cập nhật tham chiếu) | có |
+| Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) | Tran Tuan Anh <76089574+plastma65@users.noreply.github.com> (git, GitHub: plastma65) | Toàn bộ: policy, engine, pipeline, baselines, tests, review loop, report | 822bbaf, dec045f, 74d633e, f6ad721, f7ed6fb, bf543fe, c0fd9d7 (+ commit review evidence) | có |
 
 ## 11 · References
 
@@ -200,8 +235,8 @@ pytest -q
 
 **Bảng 3 · Checklist chốt khi nộp**
 
-- [ ] Link repo và tag cuối cùng trong README; input mẫu không chứa PII thật. *(fixture synthetic CC0; tag chưa gắn)*
+- [x] Link repo và tag trong README (mục "Bài nộp G04"); input mẫu không chứa PII thật (fixture synthetic CC0). Tag `final-24h` gắn khi nộp cuối.
 - [x] Đúng 1 lệnh run, 1 lệnh evaluate, 1 lệnh tests; không cần download khi chạy.
-- [x] Có baseline/PoC metrics (dev self-check), ≥1 failure case, reviewer evidence (`out/hitl_demo/`), decision log.
+- [x] Có baseline/PoC metrics (dev self-check), ≥1 failure case, reviewer evidence (`reports/review_evidence/`), decision log.
 - [x] Có license/source provenance, data splits, seed, offline environment, GT/eval N.
 - [x] Mỗi thành viên có ≥1 commit thực chất và được nêu minh bạch trong bảng trên.

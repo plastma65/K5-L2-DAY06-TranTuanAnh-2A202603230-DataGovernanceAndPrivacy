@@ -1,5 +1,26 @@
 # Day 06 · Data Lab · Field-to-Release PoC (AI20K · Data Track)
 
+## Bài nộp G04 · T09 Multi-Market Privacy Decision Gate
+
+| Mục | Giá trị |
+|---|---|
+| Nhóm / thành viên | G04 · Trần Tuấn Anh (làm một mình) |
+| Repo | https://github.com/plastma65/K5-L2-DAY06-TranTuanAnh-2A202603230-DataGovernanceAndPrivacy |
+| Tag | `demo-180m` → `c0fd9d7` · `final-24h` → gắn khi nộp cuối |
+| Report | `reports/group_report.md` · `reports/metric_contract.md` · `reports/redteam_t09.md` · `reports/team_contributions.csv` |
+| Human review | `reports/review_evidence/` (12/12 case đã ký, `decision.json` = GO `ALL_CASES_SIGNED_OFF`) |
+| Code nhóm | `policies/t09_policy_v1.yaml` · `src/t09/policy_engine.py` · `src/pipeline.py` · `src/baselines/` · `tests/test_t09_*.py` |
+
+```bash
+python -m src.main --input fixtures/t09_privacy_gate --config configs/lab.yaml --output out/ --offline --seed 42   # PoC
+python -m src.main --track t09 --pipeline src.baselines.t09_consent_only --output out/baseline --run-name baseline --offline --seed 42
+python -m src.evaluate --track t09 --pred out/decisions.csv        # cần overlay gt/ của giảng viên
+pytest -q                                                          # 236 passed, 39 skipped (cần gt/)
+```
+Windows: dùng `.venv\Scripts\python` (Makefile mặc định `.venv/bin/python`, truyền `PY=.venv/Scripts/python`).
+
+---
+
 Starter repo cho bài lab **Data Pipeline, Privacy & Production PoC**: 14 challenge (T01–T14), một contract chung.
 Repo cung cấp **dữ liệu offline + hạ tầng dùng chung + metric chuẩn + template báo cáo** để nhóm tập trung vào phần quan trọng:
 vấn đề, baseline, thuật toán, đánh giá trung thực, human-in-the-loop và quyết định GO/HOLD/REWORK.
