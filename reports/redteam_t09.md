@@ -112,17 +112,17 @@ Các điểm dưới đây đã có test thường (không xfail) trong `tests/t
 
 | Finding | Commit | Cách sửa |
 |---|---|---|
-| RT-02/03/04/06/07/20 | `891dbd3` | `case_schema` có kiểu: field vắng / null / sai kiểu → HOLD `EVIDENCE_MISSING` |
-| RT-05 | `891dbd3` | `as_of` < `effective_date` của policy → `PolicyError` (từ chối chạy, exit 2) |
-| RT-13/18/19 | `891dbd3` | kiểm tra lúc load: path phải có trong schema, `markets` là list, param số cho op số, regex hợp lệ |
-| RT-01 | `891dbd3` | allowlist cơ chế chuyển giao (EU Ch. V, SG s.26) thay cho blocklist |
-| RT-08 | `891dbd3` | so khớp regex không phân biệt hoa thường cho location / anonymization |
-| RT-09 | `891dbd3` | rule mới R-SG-05 `CONSENT_INVALID` |
-| RT-10 | `891dbd3` | rule mới R-GEN-03: trẻ em trong `data_subjects` → HOLD `MINORS` |
-| RT-11 | `891dbd3` | rule mới R-GEN-04 mức `FLAG` (`SENSITIVE_DATA_REVIEW`, bật `needs_legal_review`, không đổi quyết định) |
-| RT-12 | `891dbd3` | rule mới R-EVD-01/02 → HOLD `EVIDENCE_INCONSISTENT` |
-| RT-14..17 | commit kế tiếp | `apply_review`: note/reviewer null bị từ chối, dòng review trùng case bị từ chối, override chỉ nhận GO/HOLD/REWORK |
-| Trích dẫn | `891dbd3` | Luật 91: Đ.20 = chuyển xuyên biên giới, Đ.21 = đánh giá tác động xử lý (đã đối chiếu toàn văn; trước đó bị hoán đổi, file mẫu `policy_example.yaml` của giảng viên cũng hoán đổi), Đ.24 = trẻ em; GDPR Art. 8 → Recital 38; AI Act ADAS = Phụ lục I, 02/08/2028 |
+| RT-02/03/04/06/07/20 | `74d633e` | `case_schema` có kiểu: field vắng / null / sai kiểu → HOLD `EVIDENCE_MISSING` |
+| RT-05 | `74d633e` | `as_of` < `effective_date` của policy → `PolicyError` (từ chối chạy, exit 2) |
+| RT-13/18/19 | `74d633e` | kiểm tra lúc load: path phải có trong schema, `markets` là list, param số cho op số, regex hợp lệ |
+| RT-01 | `74d633e` | allowlist cơ chế chuyển giao (EU Ch. V, SG s.26) thay cho blocklist |
+| RT-08 | `74d633e` | so khớp regex không phân biệt hoa thường cho location / anonymization |
+| RT-09 | `74d633e` | rule mới R-SG-05 `CONSENT_INVALID` |
+| RT-10 | `74d633e` | rule mới R-GEN-03: trẻ em trong `data_subjects` → HOLD `MINORS` |
+| RT-11 | `74d633e` | rule mới R-GEN-04 mức `FLAG` (`SENSITIVE_DATA_REVIEW`, bật `needs_legal_review`, không đổi quyết định) |
+| RT-12 | `74d633e` | rule mới R-EVD-01/02 → HOLD `EVIDENCE_INCONSISTENT` |
+| RT-14..17 | `f6ad721` | `apply_review`: note/reviewer null bị từ chối, dòng review trùng case bị từ chối, override chỉ nhận GO/HOLD/REWORK |
+| Trích dẫn | `74d633e` | Luật 91: Đ.20 = chuyển xuyên biên giới, Đ.21 = đánh giá tác động xử lý (đã đối chiếu toàn văn; trước đó bị hoán đổi, file mẫu `policy_example.yaml` của giảng viên cũng hoán đổi), Đ.24 = trẻ em; GDPR Art. 8 → Recital 38; AI Act ADAS = Phụ lục I, 02/08/2028 |
 
 Thay đổi test regression: `test_storage_null_is_not_go` nay mong đợi HOLD (thay vì REWORK) để nhất quán với RT-02.
 Không quyết định nào trên 12 case fixture thay đổi giữa g-t09-1.0 và g-t09-1.1 (CASE-03, CASE-04 có thêm cờ `SENSITIVE_DATA_REVIEW`).

@@ -71,7 +71,7 @@
 - Cùng 12 case / cùng seed 42 / cùng output contract / cùng evaluator (`src.evaluate --track t09`).
 
 **Bảng 1 · Tự kiểm trên dev (N=8, gold tự gán)** — `python -m src.compare reports/selfcheck_dev_baseline.json reports/selfcheck_dev_poc.json`
-(`reports/table1_dev_selfcheck.md`, git 328210d):
+(`reports/table1_dev_selfcheck.md`, git bf543fe):
 
 | Metric (unit) | Baseline consent-only | Baseline all-HOLD | PoC g-t09-1.1 | Ghi chú |
 |---|---|---|---|---|
@@ -146,7 +146,7 @@ Số chính thức: `make eval-baseline eval-poc compare TRACK=t09` khi có over
 **Red-team độc lập (khai báo dùng AI):** nhóm dùng **Fable 5.2** (model AI, chạy trong một session riêng) để red-team policy engine,
 với ràng buộc: không đọc CASE-09..12, không sửa code, chỉ tạo `tests/test_t09_redteam.py` + `reports/redteam_t09.md`.
 Kết quả 20 finding (5 critical false GO, 12 major, 3 minor), mỗi finding là một test `xfail(strict=True)`; nhóm kiểm lại từng
-test, sửa trong policy `g-t09-1.1` và gỡ marker trong các commit fix (cặp "test fail → fix": `4e68842` → `891dbd3`, `328210d`).
+test, sửa trong policy `g-t09-1.1` và gỡ marker trong các commit fix (cặp "test fail → fix": `dec045f` → `74d633e`, `f6ad721`).
 Phần rà trích dẫn của Fable làm từ trí nhớ; nhóm đã đối chiếu toàn văn Luật 91 và phát hiện Đ.20/Đ.21 bị hoán đổi trong policy
 (và trong `rules/policy_example.yaml` của fixture).
 
@@ -162,7 +162,7 @@ pytest -q
 
 - `pytest -q`: **236 passed, 39 skipped** (skip = test cần `gt/` giảng viên), 0 failed. Test của nhóm: `tests/test_t09_policy.py`
   (17), `tests/test_t09_redteam.py` (red-team + regression guards).
-- Máy: Windows 11 (10.0.26300), Intel Family 6 Model 213, Python 3.11.9 · git sha khi đo: 328210d.
+- Máy: Windows 11 (10.0.26300), Intel Family 6 Model 213, Python 3.11.9 · git sha khi đo: bf543fe.
 - Lưu ý Windows: Makefile dùng `.venv/bin/python`; trên Windows truyền `PY=.venv/Scripts/python`.
 
 ## 09 · Limitations & ethics
@@ -185,7 +185,7 @@ pytest -q
 
 | Học viên | Git author/email | Module / vai trò | Commit SHA | Trình bày? |
 |---|---|---|---|---|
-| Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) | Tran Tuan Anh <plastma65@gmail.com> (git, GitHub: plastma65) | Toàn bộ: policy, engine, pipeline, baselines, tests, review loop, report | d685810, 4e68842, 891dbd3, 328210d (+ commit report) | có |
+| Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) | Tran Tuan Anh <76089574+plastma65@users.noreply.github.com> (git, GitHub: plastma65) | Toàn bộ: policy, engine, pipeline, baselines, tests, review loop, report | 822bbaf, dec045f, 74d633e, f6ad721, f7ed6fb, bf543fe (+ commit cập nhật tham chiếu) | có |
 
 ## 11 · References
 
