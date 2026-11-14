@@ -21,6 +21,6 @@
 | Cách báo độ bất định khi N nhỏ | N eval = 4 → báo **từng case** + Wilson 95% CI cho tỉ lệ; không kết luận chung từ 1 tỉ lệ |
 | Secondary | High-risk HOLD Recall, Exact decision accuracy, Reason-code match (risky), audit trace completeness (mọi case có rule_id + source hoặc lý do GO) |
 | Baseline | (1) consent-only: "có consent thì GO" (`src/baselines/t09_consent_only.py`) · (2) trivial all-HOLD (`src/baselines/t09_all_hold.py`) |
-| Ngày giờ chốt + người chốt | 2026-11-14 · ____ (điền tên người chốt) |
+| Ngày giờ chốt + người chốt | 2026-11-14 · Trần Tuấn Anh (G04) — policy g-t09-1.0 chốt trước eval; g-t09-1.1 = sửa red-team (không đổi quyết định nào trên fixture) |
 
 Nếu baseline = 0 thì ghi rõ "baseline = 0" thay vì phần trăm cải thiện.
