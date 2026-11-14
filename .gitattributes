@@ -1,0 +1,4 @@
+# Fixtures are provenance-checked by sha256 (manifest.csv): keep their bytes exactly as committed.
+# Without this, Git for Windows (core.autocrlf=true) rewrites LF -> CRLF on checkout and every
+# text fixture fails the hash check in load().
+fixtures/** -text
