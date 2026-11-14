@@ -13,7 +13,7 @@
 | Thành viên + vai trò | 1. Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) — làm một mình, đảm nhận cả 5 vai trò (Lead/Integrator, Data & fixtures, Core algorithm, QA/metric, Review + report) |
 | Git URL | https://github.com/plastma65/K5-L2-DAY06-TranTuanAnh-2A202603230-DataGovernanceAndPrivacy |
 | Tag `demo-180m` (commit) | `c0fd9d7` (code + report trước human review; review evidence thêm ở commit sau) |
-| Tag `final-24h` (commit) | ____ |
+| Tag `final-24h` (commit) | commit nộp cuối, xem `git show final-24h` |
 | Deadline (giờ VN) | 12:00 ngày 15/11/2026 |
 
 ## 01 · Problem statement
@@ -235,7 +235,7 @@ pytest -q
 
 **Bảng 3 · Checklist chốt khi nộp**
 
-- [x] Link repo và tag trong README (mục "Bài nộp G04"); input mẫu không chứa PII thật (fixture synthetic CC0). Tag `final-24h` gắn khi nộp cuối.
+- [x] Link repo và tag trong README (mục "Bài nộp G04"); input mẫu không chứa PII thật (fixture synthetic CC0). Tag `demo-180m` và `final-24h` đã gắn.
 - [x] Đúng 1 lệnh run, 1 lệnh evaluate, 1 lệnh tests; không cần download khi chạy.
 - [x] Có baseline/PoC metrics (dev self-check), ≥1 failure case, reviewer evidence (`reports/review_evidence/`), decision log.
 - [x] Có license/source provenance, data splits, seed, offline environment, GT/eval N.
