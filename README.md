@@ -8,6 +8,7 @@
 | Repo | https://github.com/plastma65/K5-L2-DAY06-TranTuanAnh-2A202603230-DataGovernanceAndPrivacy |
 | Tag | `demo-180m` → `c0fd9d7` · `final-24h` → gắn khi nộp cuối |
 | Report | `reports/group_report.md` · `reports/metric_contract.md` · `reports/redteam_t09.md` · `reports/team_contributions.csv` |
+| Slide demo | `demo/G04_T09_slides.pptx` (5 slide, có ghi chú thuyết trình) |
 | Human review | `reports/review_evidence/` (12/12 case đã ký, `decision.json` = GO `ALL_CASES_SIGNED_OFF`) |
 | Code nhóm | `policies/t09_policy_v1.yaml` · `src/t09/policy_engine.py` · `src/pipeline.py` · `src/baselines/` · `tests/test_t09_*.py` |
 
