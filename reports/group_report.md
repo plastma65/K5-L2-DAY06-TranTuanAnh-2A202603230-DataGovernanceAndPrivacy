@@ -10,7 +10,7 @@
 |---|---|
 | Group ID | G04 |
 | Challenge | T09 · Multi-Market Privacy Decision Gate |
-| Thành viên + vai trò | 1. Trần Tuấn Anh — làm một mình, đảm nhận cả 5 vai trò (Lead/Integrator, Data & fixtures, Core algorithm, QA/metric, Review + report) |
+| Thành viên + vai trò | 1. Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) — làm một mình, đảm nhận cả 5 vai trò (Lead/Integrator, Data & fixtures, Core algorithm, QA/metric, Review + report) |
 | Git URL | https://github.com/plastma65/K5-L2-DAY06-TranTuanAnh-2A202603230-DataGovernanceAndPrivacy |
 | Tag `demo-180m` (commit) | ____ (gắn khi freeze demo) |
 | Tag `final-24h` (commit) | ____ |
@@ -185,7 +185,7 @@ pytest -q
 
 | Học viên | Git author/email | Module / vai trò | Commit SHA | Trình bày? |
 |---|---|---|---|---|
-| Trần Tuấn Anh | Tran Tuan Anh <plastma65@gmail.com> | Toàn bộ: policy, engine, pipeline, baselines, tests, review loop, report | d685810, 4e68842, 891dbd3, 328210d (+ commit report) | có |
+| Trần Tuấn Anh (26ai.anhtt5@vinuni.edu.vn) | Tran Tuan Anh <plastma65@gmail.com> (git, GitHub: plastma65) | Toàn bộ: policy, engine, pipeline, baselines, tests, review loop, report | d685810, 4e68842, 891dbd3, 328210d (+ commit report) | có |
 
 ## 11 · References
 
