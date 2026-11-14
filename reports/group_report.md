@@ -14,7 +14,7 @@
 | Git URL | https://github.com/plastma65/K5-L2-DAY06-TranTuanAnh-2A202603230-DataGovernanceAndPrivacy |
 | Tag `demo-180m` (commit) | `c0fd9d7` (code + report trước human review; review evidence thêm ở commit sau) |
 | Tag `final-24h` (commit) | ____ |
-| Deadline (giờ VN) | ____ |
+| Deadline (giờ VN) | 12:00 ngày 15/11/2026 |
 
 ## 01 · Problem statement
 
