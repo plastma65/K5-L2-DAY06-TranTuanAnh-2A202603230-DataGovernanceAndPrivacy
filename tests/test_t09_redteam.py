@@ -306,24 +306,18 @@ def test_rt13_misspelled_rule_path_is_detected(tmp_path, policy):
     assert decide(risky, mutated).decision == "HOLD"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-14: apply_review accepts a missing note (None/NaN -> 'None'/'nan' is "
-                                       "truthy) and lets HOLD be overridden to GO without justification")
 @pytest.mark.parametrize("note", [None, float("nan")])
 def test_rt14_override_with_null_note_is_refused(note):
     with pytest.raises(ValueError):
         apply_review(_scored(), _reviewed([["A", "dpo", "edit", "GO", note]]))
 
 
-@pytest.mark.xfail(strict=True, reason="RT-15: apply_review itself does not require a reviewer: HOLD->GO override is "
-                                       "applied and audited with an empty/null actor")
 @pytest.mark.parametrize("reviewer", ["", "   ", None])
 def test_rt15_override_without_reviewer_is_refused(reviewer):
     with pytest.raises(ValueError):
         apply_review(_scored(), _reviewed([["A", reviewer, "edit", "GO", "DPIA filed, evidence attached"]]))
 
 
-@pytest.mark.xfail(strict=True, reason="RT-16: conflicting review rows for one case are applied in file order; the "
-                                       "last one silently wins (escalate then edit->GO ends as GO)")
 def test_rt16_conflicting_reviews_for_same_case_are_refused():
     rows = [["A", "dpo", "escalate", "", "need vendor contract"],
             ["A", "intern", "edit", "GO", "looks fine"]]
@@ -334,8 +328,6 @@ def test_rt16_conflicting_reviews_for_same_case_are_refused():
     assert out.loc[out.case_id == "A", "decision"].iloc[0] == "HOLD"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-17: override_value accepts cross-track aliases; 'REJECT'/'FIX' map to "
-                                       "REWORK, so a reviewer rejecting a HOLD case silently DOWNGRADES it to REWORK")
 @pytest.mark.parametrize("alias", ["REJECT", "reject", "FIX", "RECAPTURE", "PASS", "ACCEPT", "RELEASE", "KEEP"])
 def test_rt17_override_value_outside_go_hold_rework_is_refused(alias):
     with pytest.raises(ValueError):

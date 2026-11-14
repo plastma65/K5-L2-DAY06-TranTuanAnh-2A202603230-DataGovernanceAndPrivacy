@@ -20,7 +20,7 @@ import pandas as pd
 
 from .common.contact_sheet import render_contact_sheet
 from .common.context import RunContext
-from .common.decision import Decision, canonical_status, write_decision
+from .common.decision import Decision, write_decision
 from .common.manifest import verify_manifest
 from .common.review import load_review_decisions, make_review_queue, write_review_queue
 from .metrics.tracks import get_track
@@ -127,37 +127,62 @@ def rank(ctx: RunContext, scored: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------- 04 review
+T09_DECISIONS = ("GO", "HOLD", "REWORK")
+REVIEW_DECISIONS = ("approve", "edit", "reject", "escalate", "skip")
+
+
+def _text(v) -> str:
+    """Cell -> stripped string; None / NaN become '' (so they never pass a 'mandatory' check)."""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return ""
+    return str(v).strip()
+
+
 def apply_review(scored: pd.DataFrame, reviewed: pd.DataFrame, audit=None) -> pd.DataFrame:
     """approve -> keep proposal · edit/reject + override -> override (note mandatory) ·
-    reject without value / escalate -> HOLD. Every change goes to the audit log."""
+    reject without value / escalate -> HOLD. Every change goes to the audit log.
+
+    Guards: named reviewer on every acted row, one acted row per case (conflicts go back to the
+    reviewers, never resolved by file order), override value strictly GO/HOLD/REWORK (no aliases
+    from other tracks such as REJECT->REWORK)."""
     out = scored.copy()
     known = set(out["case_id"].astype(str))
-    for r in reviewed.itertuples(index=False):
-        cid = str(r.item_id)
+    acted = [r for r in reviewed.itertuples(index=False) if _text(r.reviewer_decision).lower() != "skip"]
+    ids = [_text(r.item_id) for r in acted]
+    dups = sorted({i for i in ids if ids.count(i) > 1})
+    if dups:
+        raise ValueError(f"conflicting review rows for {dups}: resolve between reviewers before applying")
+    for r in acted:
+        cid = _text(r.item_id)
         if cid not in known:
             raise ValueError(f"review file references unknown case {cid!r}")
+        dec = _text(r.reviewer_decision).lower()
+        if dec not in REVIEW_DECISIONS:
+            raise ValueError(f"{cid}: unknown reviewer_decision {dec!r}; allowed {REVIEW_DECISIONS}")
+        reviewer, note, ov = _text(r.reviewer), _text(r.review_note), _text(r.override_value).upper()
+        if not reviewer:
+            raise ValueError(f"{cid}: reviewer is mandatory for a legal decision ({dec})")
         m = out["case_id"].astype(str) == cid
         before = out.loc[m, "decision"].iloc[0]
-        dec, note, ov = r.reviewer_decision, str(r.review_note).strip(), str(r.override_value).strip()
-        if dec == "skip":
-            continue
         if dec == "approve":
             after, status = before, "approved"
         elif dec in ("edit", "reject") and ov:
+            if ov not in T09_DECISIONS:
+                raise ValueError(f"{cid}: override_value must be one of {T09_DECISIONS}, got {ov!r}")
             if not note:
                 raise ValueError(f"{cid}: override {before}->{ov} needs a review_note (legal justification)")
-            after, status = canonical_status(ov), "overridden"
+            after, status = ov, "overridden"
         elif dec in ("reject", "escalate"):
             after, status = "HOLD", "escalated"
         else:
             raise ValueError(f"{cid}: `edit` needs override_value GO/HOLD/REWORK")
-        out.loc[m, ["decision", "approval_status", "reviewer", "review_note"]] = [after, status, r.reviewer, note]
+        out.loc[m, ["decision", "approval_status", "reviewer", "review_note"]] = [after, status, reviewer, note]
         if after != before:
             codes = [c for c in str(out.loc[m, "reason_codes"].iloc[0]).split(";") if c]
             codes.append("ESCALATED_TO_DPO" if status == "escalated" else "HUMAN_OVERRIDE")
             out.loc[m, "reason_codes"] = ";".join(dict.fromkeys(codes))
         if audit:
-            audit.log(actor=r.reviewer, action=f"legal_review:{dec}", item_id=cid, before=before, after=after,
+            audit.log(actor=reviewer, action=f"legal_review:{dec}", item_id=cid, before=before, after=after,
                       reason=note, approval_status=status)
     return out
 
