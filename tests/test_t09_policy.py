@@ -101,7 +101,7 @@ def test_future_rule_is_note_not_violation(policy):
     eu = case(market="EU")
     now = evaluate_case(eu, policy, AS_OF)
     assert now.decision == "GO" and [x["id"] for x in now.upcoming] == ["R-EU-AIA-01"]
-    later = evaluate_case(eu, policy, date(2028, 1, 1))
+    later = evaluate_case(eu, policy, date(2028, 9, 1))   # Annex I obligations from 2028-08-02
     assert later.decision == "HOLD" and "AI_ACT_HIGH_RISK_UPCOMING" in later.reason_codes
 
 
@@ -117,7 +117,7 @@ def test_future_rule_is_note_not_violation(policy):
 def test_malformed_policy_is_rejected(tmp_path, bad_rule, msg):
     p = tmp_path / "bad.yaml"
     p.write_text(json.dumps({"policy_version": "t", "effective_date": "2026-01-01", "reason_codes": ["MINORS"],
-                             "rules": [bad_rule]}), encoding="utf-8")
+                             "case_schema": [{"path": "a", "type": "any"}], "rules": [bad_rule]}), encoding="utf-8")
     with pytest.raises(PolicyError, match=msg):
         load_policy(p)
 

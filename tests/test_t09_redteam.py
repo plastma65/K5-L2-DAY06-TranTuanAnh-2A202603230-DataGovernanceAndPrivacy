@@ -123,8 +123,9 @@ def test_retention_boundary(policy):
 
 
 def test_storage_null_is_not_go(policy):
+    # policy 1.1: null storage block = no evidence -> HOLD EVIDENCE_MISSING, consistent with RT-02 (null transfer).
     r = decide(case(storage=None), policy)
-    assert r.decision == "REWORK" and "NO_ENCRYPTION" in r.reason_codes
+    assert r.decision == "HOLD" and {"EVIDENCE_MISSING", "NO_ENCRYPTION"} <= set(r.reason_codes)
 
 
 def test_empty_case_is_hold(policy):
@@ -199,8 +200,6 @@ def test_review_csv_loader_rejects_empty_reviewer(tmp_path):
 # =============================================================================
 # B. Open findings — CRITICAL (false GO on a risky case)
 # =============================================================================
-@pytest.mark.xfail(strict=True, reason="RT-01: cross-border with an unrecognised transfer.mechanism value is GO "
-                                       "(blocklist [null, unknown, none, ''] instead of an allowlist)")
 @pytest.mark.parametrize("market", ["EU", "SG"])
 @pytest.mark.parametrize("mechanism", ["verbal_agreement", "n/a", "None", "Unknown", "TBD", "pending", 0, False, []])
 def test_rt01_unrecognised_transfer_mechanism_is_not_go(policy, market, mechanism):
@@ -209,8 +208,6 @@ def test_rt01_unrecognised_transfer_mechanism_is_not_go(policy, market, mechanis
     assert r.decision == "HOLD" and "XBORDER_NO_MECHANISM" in r.reason_codes
 
 
-@pytest.mark.xfail(strict=True, reason="RT-02: `transfer` present but null/empty (no cross_border evidence) is GO; "
-                                       "required-field check is top-level only")
 @pytest.mark.parametrize("market", ["EU", "VN", "SG", "US-CA"])
 @pytest.mark.parametrize("transfer", [None, {}, {"destination": "US"}, "unknown"])
 def test_rt02_missing_nested_transfer_evidence_is_hold(policy, market, transfer):
@@ -218,8 +215,6 @@ def test_rt02_missing_nested_transfer_evidence_is_hold(policy, market, transfer)
     assert r.decision == "HOLD" and "EVIDENCE_MISSING" in r.reason_codes
 
 
-@pytest.mark.xfail(strict=True, reason="RT-03: transfer.cross_border given as non-boolean truthy ('true', 1, 'yes') "
-                                       "is read as 'no transfer' by `is_true` -> GO")
 @pytest.mark.parametrize("market", ["EU", "VN", "SG"])
 @pytest.mark.parametrize("flag", ["true", "True", "yes", 1, None])
 def test_rt03_non_boolean_cross_border_is_not_go(policy, market, flag):
@@ -227,8 +222,6 @@ def test_rt03_non_boolean_cross_border_is_not_go(policy, market, flag):
     assert r.decision == "HOLD"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-04: minors_possible as 'true'/1/None is GO (`is_true` is fail-open; "
-                                       "null passes the required-field check)")
 @pytest.mark.parametrize("market", ["EU", "VN", "SG", "US-CA"])
 @pytest.mark.parametrize("flag", ["true", "yes", 1, None, "unknown"])
 def test_rt04_non_boolean_minors_flag_is_hold(policy, market, flag):
@@ -236,8 +229,6 @@ def test_rt04_non_boolean_minors_flag_is_hold(policy, market, flag):
     assert r.decision == "HOLD"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-05: as_of earlier than the policy effective_date turns EVERY rule into an "
-                                       "UPCOMING note -> any case is GO")
 def test_rt05_as_of_before_policy_effective_date_is_not_go(policy):
     risky = case(market="EU", lawful_basis="unknown", dpia_done=False, minors_possible=True,
                  transfer__cross_border=True, transfer__mechanism=None, ambiguity_notes="vendor role unclear")
@@ -251,21 +242,16 @@ def test_rt05_as_of_before_policy_effective_date_is_not_go(policy):
 # =============================================================================
 # C. Open findings — MAJOR
 # =============================================================================
-@pytest.mark.xfail(strict=True, reason="RT-06: non-numeric retention_days ('9999', '', 'forever', NaN) skips both "
-                                       "retention rules -> GO")
 @pytest.mark.parametrize("value", ["9999", "", "forever", "90 days", float("nan"), [], {}])
 def test_rt06_non_numeric_retention_is_not_go(policy, value):
     assert decide(case(retention_days=value), policy).decision != "GO"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-07: impossible retention_days (negative, boolean) is accepted as valid -> GO")
 @pytest.mark.parametrize("value", [-1, -365, True, False])
 def test_rt07_impossible_retention_is_not_go(policy, value):
     assert decide(case(retention_days=value), policy).decision != "GO"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-08: RAW_PII_IN_CLOUD is bypassed by spelling/typing variants "
-                                       "(anonymization 'None'/'no', location 'Cloud'/'cloud_us-east', raw_retained 'true')")
 @pytest.mark.parametrize("changes", [
     {"storage__raw_retained": True, "storage__location": "cloud", "anonymization": "None"},
     {"storage__raw_retained": True, "storage__location": "cloud", "anonymization": "no"},
@@ -279,23 +265,17 @@ def test_rt08_raw_pii_in_cloud_variants_are_not_go(policy, changes):
     assert decide(case(**changes), policy).decision != "GO"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-09: SG bundled / non-withdrawable consent is GO (CONSENT_INVALID rules "
-                                       "exist for EU and VN only; PDPA s.14(2), s.16)")
 @pytest.mark.parametrize("changes", [{"consent__granular": False}, {"consent__withdrawable": False}])
 def test_rt09_sg_invalid_consent_is_not_go(policy, changes):
     r = decide(case(market="SG", **changes), policy)
     assert r.decision != "GO" and "CONSENT_INVALID" in r.reason_codes
 
 
-@pytest.mark.xfail(strict=True, reason="RT-10: data_subjects lists children/minors while minors_possible=false -> GO "
-                                       "(contradictory evidence is not detected; data_subjects is never read)")
 @pytest.mark.parametrize("subjects", [["children"], ["pedestrians", "minors"], ["school_children", "other_drivers"]])
 def test_rt10_children_in_data_subjects_is_hold(policy, subjects):
     assert decide(case(data_subjects=subjects, minors_possible=False), policy).decision == "HOLD"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-11: sensitive data_types (face, in_cabin_video, biometric) never influence "
-                                       "the outcome nor the needs_legal_review flag; data_types is never read")
 @pytest.mark.parametrize("market", ["VN", "SG", "US-CA"])
 def test_rt11_sensitive_data_types_are_at_least_flagged(policy, market):
     r = decide(case(market=market, data_types=["face", "in_cabin_video", "biometric_template"],
@@ -303,8 +283,6 @@ def test_rt11_sensitive_data_types_are_at_least_flagged(policy, market):
     assert r.decision != "GO" or r.needs_legal_review
 
 
-@pytest.mark.xfail(strict=True, reason="RT-12: contradictory transfer block is GO (cross_border=true + mechanism but "
-                                       "destination null; cross_border=false but destination/mechanism filled)")
 @pytest.mark.parametrize("market, transfer", [
     ("EU", {"cross_border": True, "destination": None, "mechanism": "SCC", "transfer_impact_assessment": True}),
     ("SG", {"cross_border": True, "destination": "", "mechanism": "contract", "transfer_impact_assessment": True}),
@@ -315,8 +293,6 @@ def test_rt12_contradictory_transfer_block_is_hold(policy, market, transfer):
     assert decide(case(market=market, transfer=transfer), policy).decision == "HOLD"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-13: a rule whose `path` is misspelled loads without error and silently "
-                                       "never fires -> GO (no path validation, no EVIDENCE_MISSING for missing paths)")
 def test_rt13_misspelled_rule_path_is_detected(tmp_path, policy):
     def typo(raw):
         rule = next(r for r in raw["rules"] if r["id"] == "R-EU-02")
@@ -369,8 +345,6 @@ def test_rt17_override_value_outside_go_hold_rework_is_refused(alias):
 # =============================================================================
 # D. Open findings — MINOR (robustness of rule loading / inputs)
 # =============================================================================
-@pytest.mark.xfail(strict=True, reason="RT-18: load_policy does not check that `markets` is a list; `markets: EU` "
-                                       "(string) is matched by substring and pollutes covered markets ('E','U')")
 def test_rt18_markets_must_be_a_list(tmp_path):
     def stringify(raw):
         next(r for r in raw["rules"] if r["id"] == "R-EU-02")["markets"] = "EU"
@@ -378,9 +352,6 @@ def test_rt18_markets_must_be_a_list(tmp_path):
         load_policy(_tmp_policy(tmp_path, stringify))
 
 
-@pytest.mark.xfail(strict=True, reason="RT-19: a non-numeric param (retention_max_days: '365') is accepted at load "
-                                       "and crashes evaluation with a raw TypeError instead of PolicyError",
-                   raises=TypeError)
 def test_rt19_non_numeric_param_is_rejected_cleanly(tmp_path):
     def stringify(raw):
         raw["params"]["retention_max_days"] = "365"
@@ -391,8 +362,6 @@ def test_rt19_non_numeric_param_is_rejected_cleanly(tmp_path):
     assert decide(case(retention_days=400), mutated).decision != "GO"
 
 
-@pytest.mark.xfail(strict=True, reason="RT-20: ambiguity_notes key absent is GO; the field is in the case schema but "
-                                       "not in required_case_fields, so 'not assessed' reads as 'no ambiguity'")
 def test_rt20_absent_ambiguity_notes_is_evidence_missing(policy):
     c = case()
     del c["ambiguity_notes"]

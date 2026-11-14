@@ -7,19 +7,55 @@
 # Condition DSL (no eval()):  {path: a.b, op: <op>, value: <v>}  |  {all: [...]}  |  {any: [...]}  |  {not: {...}}
 #   ops: eq ne in not_in is_null not_null is_true not_true gt gte lt lte nonempty empty
 #   A missing path resolves to null; `not_true` is true for false/null/missing.
-policy_version: g-t09-1.0
+policy_version: g-t09-1.1
 policy_date: 2026-11-14
-effective_date: 2026-01-01
+# Changelog
+#   1.0  first frozen version (eval outputs produced with it are reported as-is)
+#   1.1  fixes red-team findings RT-01..RT-20 (reports/redteam_t09.md), found with synthetic cases only:
+#        typed case_schema (fail-safe on null / wrong type), mechanism allowlist, normalised storage checks,
+#        SG consent validity, minors in data_subjects, sensitive data flag, contradictory transfer block,
+#        notice gap = HOLD when the basis is consent, corrected citations (Luật 91 Đ.20/Đ.21, AI Act date).
+effective_date: 2026-01-01      # Luật 91/2025 in force 2026-01-01; evaluating earlier is refused
 default_markets_covered: [VN, EU, US-CA, SG]
 params:
   retention_max_days: 365        # internal policy ceiling for raw/derived ADAS training data (needs DPO sign-off)
-required_case_fields: [case_id, market, lawful_basis, consent, notice_given, storage, transfer, retention_days,
-                       dpia_done, minors_possible]
+
+# Case schema: every path a rule may use must be declared here (typos in rules are rejected at load).
+# required + not nullable + wrong type => HOLD EVIDENCE_MISSING ("not assessed" is never read as "no risk").
+case_schema:
+  - {path: case_id, type: str, required: true}
+  - {path: market, type: str, required: true}
+  - {path: purpose, type: str}
+  - {path: data_types, type: list}
+  - {path: data_subjects, type: list}
+  - {path: lawful_basis, type: str, required: true}
+  - {path: li_assessment_done, type: any, nullable: true}
+  - {path: consent, type: any, nullable: true}             # validity checked by not_true rules (fail-safe)
+  - {path: consent.obtained, type: any, nullable: true}
+  - {path: consent.granular, type: any, nullable: true}
+  - {path: consent.withdrawable, type: any, nullable: true}
+  - {path: consent.record_available, type: any, nullable: true}
+  - {path: notice_given, type: bool, required: true}
+  - {path: storage, type: dict, required: true}
+  - {path: storage.raw_retained, type: bool, required: true}
+  - {path: storage.location, type: str, nullable: true}
+  - {path: storage.encryption_at_rest, type: bool, required: true}
+  - {path: transfer, type: dict, required: true}
+  - {path: transfer.cross_border, type: bool, required: true}
+  - {path: transfer.destination, type: any, nullable: true}
+  - {path: transfer.mechanism, type: any, nullable: true}
+  - {path: transfer.transfer_impact_assessment, type: any, nullable: true}
+  - {path: retention_days, type: number, required: true, nullable: true, min: 0}   # null => RETENTION_UNBOUNDED
+  - {path: dpia_done, type: bool, required: true}
+  - {path: minors_possible, type: bool, required: true}
+  - {path: anonymization, type: any, nullable: true}
+  - {path: ambiguity_notes, type: any, required: true, nullable: true}
 reason_codes: [XBORDER_NO_MECHANISM, RETENTION_UNBOUNDED, RETENTION_EXCESSIVE, RAW_PII_IN_CLOUD, DPIA_MISSING,
                NOTICE_MISSING, NO_LAWFUL_BASIS, CONSENT_RECORD_MISSING, MINORS, NO_ENCRYPTION, AMBIGUOUS_NEEDS_LEGAL,
                CONSENT_INVALID, XBORDER_NO_IMPACT_ASSESSMENT,
                # engine-level codes added by the group
-               EVIDENCE_MISSING, MARKET_NOT_COVERED, AI_ACT_HIGH_RISK_UPCOMING]
+               EVIDENCE_MISSING, MARKET_NOT_COVERED, AI_ACT_HIGH_RISK_UPCOMING,
+               EVIDENCE_INCONSISTENT, SENSITIVE_DATA_REVIEW]
 
 sources:
   GDPR: &GDPR {doc: 'GDPR (EU) 2016/679 (EUR-Lex)', url: 'https://eur-lex.europa.eu/eli/reg/2016/679/oj'}
@@ -46,12 +82,13 @@ rules:
     decision: HOLD
     reason_code: MINORS
     note: "Children's data needs parental consent / extra safeguards; route to legal."
-    source: {<<: *GDPR, ref: 'Art. 8; Recital 38 (VN: Luật 91 — children data, verify article)'}
+    source: {<<: *GDPR, ref: 'Recital 38 (children merit specific protection); VN Luật 91 Đ.24 (dữ liệu cá nhân của trẻ em)'}
     version_date: 2026-11-14
     confidence: medium
     needs_legal_review: true
   - id: R-RET-01
     markets: ['*']
+    citation_scope: 'GDPR text cited as the reference principle; local equivalent (Luật 91, PDPA, CCPA) to be mapped by legal'
     when: {path: retention_days, op: is_null}
     decision: REWORK
     reason_code: RETENTION_UNBOUNDED
@@ -61,6 +98,7 @@ rules:
     needs_legal_review: false
   - id: R-RET-02
     markets: ['*']
+    citation_scope: 'GDPR text cited as the reference principle; local equivalent (Luật 91, PDPA, CCPA) to be mapped by legal'
     when: {path: retention_days, op: gt, value: {param: retention_max_days}}
     decision: REWORK
     reason_code: RETENTION_EXCESSIVE
@@ -71,6 +109,7 @@ rules:
     needs_legal_review: true
   - id: R-SEC-01
     markets: ['*']
+    citation_scope: 'GDPR text cited as the reference principle; local equivalent (Luật 91, PDPA, CCPA) to be mapped by legal'
     when: {path: storage.encryption_at_rest, op: not_true}
     decision: REWORK
     reason_code: NO_ENCRYPTION
@@ -80,11 +119,12 @@ rules:
     needs_legal_review: false
   - id: R-SEC-02
     markets: ['*']
+    citation_scope: 'GDPR text cited as the reference principle; local equivalent (Luật 91, PDPA, CCPA) to be mapped by legal'
     when:
       all:
         - {path: storage.raw_retained, op: is_true}
-        - {path: storage.location, op: eq, value: cloud}
-        - {path: anonymization, op: in, value: [none, null, '']}
+        - {path: storage.location, op: matches, value: 'cloud'}
+        - {any: [{path: anonymization, op: empty}, {path: anonymization, op: matches, value: '^\s*(none|no|null|false|n/?a|raw)\s*$'}]}
     decision: REWORK
     reason_code: RAW_PII_IN_CLOUD
     note: 'Raw, non-anonymised footage in cloud: blur/minimise before upload (data minimisation, privacy by design).'
@@ -92,6 +132,65 @@ rules:
     version_date: 2026-11-14
     confidence: medium
     needs_legal_review: false
+  - id: R-GEN-03
+    markets: ['*']
+    when: {path: data_subjects, op: any_matches, value: 'child|minor|kid|infant|student|pupil|teen'}
+    decision: HOLD
+    reason_code: MINORS
+    note: 'Children listed as data subjects: treated as minors_possible regardless of the flag (contradictory evidence goes to legal).'
+    source: {<<: *VN91, ref: 'Đ.24 (dữ liệu cá nhân của trẻ em); GDPR Recital 38'}
+    version_date: 2026-11-14
+    confidence: medium
+    needs_legal_review: true
+  - id: R-GEN-04
+    markets: ['*']
+    when: {path: data_types, op: any_matches, value: 'face|biometric|in_cabin|voice|health|fingerprint|iris'}
+    decision: FLAG
+    reason_code: SENSITIVE_DATA_REVIEW
+    note: 'Possible sensitive / biometric data: does not change the decision by itself, but requires legal review.'
+    source: {<<: *VN91, ref: 'Đ.2 khoản 3 (dữ liệu cá nhân nhạy cảm); GDPR Art. 9; CPRA sensitive personal information'}
+    version_date: 2026-11-14
+    confidence: low
+    needs_legal_review: true
+  - id: R-EVD-01
+    markets: ['*']
+    when:
+      all:
+        - {path: transfer.cross_border, op: is_true}
+        - {path: transfer.destination, op: empty}
+    decision: HOLD
+    reason_code: EVIDENCE_INCONSISTENT
+    note: 'Cross-border transfer without a destination: adequacy / impact assessment cannot be evaluated.'
+    source: {doc: 'Engine evidence rule', ref: 'transfer block consistency'}
+    version_date: 2026-11-14
+    confidence: high
+    needs_legal_review: false
+  - id: R-EVD-02
+    markets: ['*']
+    when:
+      all:
+        - {path: transfer.cross_border, op: eq, value: false}
+        - {any: [{path: transfer.destination, op: nonempty}, {path: transfer.mechanism, op: nonempty}]}
+    decision: HOLD
+    reason_code: EVIDENCE_INCONSISTENT
+    note: 'cross_border=false but a destination or mechanism is filled in: the record contradicts itself.'
+    source: {doc: 'Engine evidence rule', ref: 'transfer block consistency'}
+    version_date: 2026-11-14
+    confidence: high
+    needs_legal_review: false
+  - id: R-CON-03
+    markets: [EU, VN, SG]
+    when:
+      all:
+        - {path: lawful_basis, op: eq, value: consent}
+        - {path: notice_given, op: not_true}
+    decision: HOLD
+    reason_code: NOTICE_MISSING
+    note: 'Group decision 2026-11-14: a notice gap is REWORK, except when the basis is consent (consent without information is not informed consent) => HOLD.'
+    source: {<<: *GDPR, ref: 'Art. 4(11) informed consent, Art. 13; VN Luật 91 Đ.9; PDPA s.20'}
+    version_date: 2026-11-14
+    confidence: medium
+    needs_legal_review: true
   - id: R-CON-01
     markets: [EU, VN, SG]
     when:
@@ -134,10 +233,11 @@ rules:
     when:
       all:
         - {path: transfer.cross_border, op: is_true}
-        - {path: transfer.mechanism, op: in, value: [null, unknown, none, '']}
+        - {path: transfer.mechanism, op: not_matches, value: '^\s*(adequacy|adequacy_decision|scc|standard_contractual_clauses|bcr|binding_corporate_rules|code_of_conduct|certification|art49_derogation)\s*$'}
     decision: HOLD
     reason_code: XBORDER_NO_MECHANISM
-    source: {<<: *GDPR, ref: 'Chapter V, Art. 44-49'}
+    note: 'Allowlist of Chapter V tools; anything else (unknown, TBD, verbal, non-string) is treated as no mechanism.'
+    source: {<<: *GDPR, ref: 'Chapter V: Art. 45 adequacy, Art. 46 SCC/BCR/codes/certification, Art. 47 BCR, Art. 49 derogations'}
     version_date: 2026-11-14
     confidence: high
     needs_legal_review: false
@@ -177,10 +277,10 @@ rules:
     when: {path: purpose, op: nonempty}
     decision: HOLD
     reason_code: AI_ACT_HIGH_RISK_UPCOMING
-    note: 'Future obligation (Annex III high-risk from 2027-12-02, Annex I from 2028-08-02). Before effective_date => note only, not a current violation.'
-    source: {<<: *AIA, ref: 'Art. 6, Art. 113 as amended by Reg. 2026/1744'}
+    note: 'ADAS safety component falls under Annex I product legislation (vehicle type-approval) => from 2028-08-02 per docs/tracks/T09.md (Annex III would be 2027-12-02). Before effective_date => note only.'
+    source: {<<: *AIA, ref: 'Art. 6(1) + Annex I, Art. 113 as amended by Reg. 2026/1744'}
     version_date: 2026-11-14
-    effective_date: 2027-12-02
+    effective_date: 2028-08-02
     confidence: low
     needs_legal_review: true
 
@@ -192,7 +292,7 @@ rules:
     reason_code: NO_LAWFUL_BASIS
     note: 'VN has no legitimate-interest basis; without consent one of the listed exceptions is needed.'
     source: {<<: *VN91, ref: 'Đ.9 (consent), Đ.19 (cases not requiring consent)'}
-    version_date: 2026-11-13
+    version_date: 2026-11-14
     confidence: medium
     needs_legal_review: true
   - id: R-VN-02
@@ -204,8 +304,8 @@ rules:
     decision: HOLD
     reason_code: XBORDER_NO_IMPACT_ASSESSMENT
     note: 'Transfer impact-assessment dossier must be prepared and filed within 60 days. Valid consent does NOT cure this.'
-    source: {<<: *VN91, ref: 'Luật 91 Đ.21; NĐ 356/2025/NĐ-CP dossier rules'}
-    version_date: 2026-11-13
+    source: {<<: *VN91, ref: 'Luật 91 Đ.20 (chuyển dữ liệu cá nhân xuyên biên giới), Đ.22 (cập nhật hồ sơ); NĐ 356/2025 Đ.17'}
+    version_date: 2026-11-14
     confidence: medium
     needs_legal_review: true
   - id: R-VN-03
@@ -213,8 +313,8 @@ rules:
     when: {path: dpia_done, op: not_true}
     decision: HOLD
     reason_code: DPIA_MISSING
-    source: {<<: *VN91, ref: 'Luật 91 Đ.20 (processing impact assessment), Đ.22 (update within 6 months)'}
-    version_date: 2026-11-13
+    source: {<<: *VN91, ref: 'Luật 91 Đ.21 (đánh giá tác động xử lý dữ liệu cá nhân), Đ.22 (cập nhật hồ sơ)'}
+    version_date: 2026-11-14
     confidence: medium
     needs_legal_review: true
   - id: R-VN-04
@@ -227,7 +327,7 @@ rules:
     reason_code: CONSENT_INVALID
     note: 'Silence, pre-ticked boxes or bundled consent are not valid; consent must be specific and withdrawable.'
     source: {<<: *VN91, ref: 'Đ.9 (voluntary, explicit, specific), Đ.10 (withdrawal)'}
-    version_date: 2026-11-13
+    version_date: 2026-11-14
     confidence: medium
     needs_legal_review: true
   - id: R-VN-05
@@ -280,9 +380,10 @@ rules:
     when:
       all:
         - {path: transfer.cross_border, op: is_true}
-        - {path: transfer.mechanism, op: in, value: [null, unknown, none, '']}
+        - {path: transfer.mechanism, op: not_matches, value: '^\s*(contract|scc|bcr|binding_corporate_rules|apec_cbpr|certification|consent)\s*$'}
     decision: HOLD
     reason_code: XBORDER_NO_MECHANISM
+    note: 'Allowlist of legally enforceable obligations / certifications under the transfer limitation obligation.'
     source: {<<: *PDPA, ref: 's.26 transfer limitation obligation; PDP Regulations 2021 Part 3'}
     version_date: 2026-11-14
     confidence: medium
@@ -296,3 +397,15 @@ rules:
     version_date: 2026-11-14
     confidence: high
     needs_legal_review: false
+  - id: R-SG-05
+    markets: [SG]
+    when:
+      all:
+        - {path: lawful_basis, op: eq, value: consent}
+        - {any: [{path: consent.granular, op: not_true}, {path: consent.withdrawable, op: not_true}]}
+    decision: REWORK
+    reason_code: CONSENT_INVALID
+    source: {<<: *PDPA, ref: 's.14(2) consent not beyond what is reasonable, s.16 withdrawal of consent'}
+    version_date: 2026-11-14
+    confidence: medium
+    needs_legal_review: true

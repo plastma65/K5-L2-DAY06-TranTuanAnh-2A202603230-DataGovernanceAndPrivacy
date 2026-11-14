@@ -87,6 +87,8 @@ def process(ctx: RunContext, data: dict) -> pd.DataFrame:
         checklist.extend(r.checklist)
         ambiguous = bool(str(case.get("ambiguity_notes") or "").strip())
         why = "; ".join(f"{x['id']}:{x['reason_code']}" for x in r.fired) or "no rule fired"
+        if r.flags:
+            why += " | flags: " + ", ".join(f"{x['id']}:{x['reason_code']}" for x in r.flags)
         if r.upcoming:
             why += " | upcoming: " + ", ".join(f"{x['id']} (from {x['effective_date']})" for x in r.upcoming)
         rows.append({
@@ -99,8 +101,9 @@ def process(ctx: RunContext, data: dict) -> pd.DataFrame:
             "rule_ids": ";".join(r.rule_ids),
             "sources": " | ".join(sorted({f"{x['source'].get('doc')} {x['source'].get('ref', '')}".strip() for x in r.fired})),
             "upcoming": ";".join(f"{x['id']}@{x['effective_date']}" for x in r.upcoming),
+            "flags": ";".join(r.flag_codes),
             "needs_legal_review": r.needs_legal_review,
-            "missing_fields": ";".join(r.missing_fields),
+            "missing_fields": ";".join(r.missing_fields + r.invalid_fields),
             "reason": why,
             "approval_status": "pending_legal",
             "reviewer": "",
